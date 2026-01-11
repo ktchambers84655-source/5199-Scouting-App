@@ -385,14 +385,10 @@
       };
     }
 
-    if (
-      !WEB_APP_URL ||
-      WEB_APP_URL === "WEB_APP_URL_HERE" ||
-      !WEB_APP_URL.startsWith("https://script.google.com/macros/s/") ||
-      !WEB_APP_URL.endsWith("/exec")
-    ) {
-      throw new Error("WEB_APP_URL must be your Apps Script /exec URL.");
-      }
+    if (!WEB_APP_URL || WEB_APP_URL === "WEB_APP_URL_HERE") {
+      throw new Error("Set WEB_APP_URL in the HTML to your Apps Script /exec URL.");
+    }
+
 
 
       const payload = buildPayload();
