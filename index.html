@@ -158,6 +158,23 @@
           </select>
         </div>
 
+        <div class="row">
+          <div>
+            <label for="teleopCycles">Teleop Cycles</label>
+            <input id="teleopCycles" type="number" inputmode="numeric" min="0" max="99" placeholder="0–99" />
+          </div>
+        
+          <div>
+            <label for="robotType">Robot Type</label>
+            <select id="robotType">
+              <option value="">Select…</option>
+              <option value="trench">Trench robot</option>
+              <option value="bump">Bump robot</option>
+              <option value="both">Both</option>
+            </select>
+          </div>
+        </div>
+
         <div id="accuracyWrap" class="hidden">
           <label for="teleopAccuracy">Teleop Accuracy</label>
           <select id="teleopAccuracy">
@@ -380,11 +397,9 @@
       requireField(autoMobility !== null, "Auto Mobility is required.");
       requireField(autoClimb !== null, "Auto Climb is required.");
 
-      let autoFuel = 0;
-      if (els.autoFuel.value.trim() !== "") {
-        autoFuel = Number(els.autoFuel.value);
-        requireField(Number.isFinite(autoFuel) && autoFuel >= 0, "Auto Fuel must be a number >= 0.");
-      }
+      const autoFuel = els.autoFuel.value.trim();
+      requireField(autoFuel.length > 0, "Auto Fuel Scored is required.");
+
 
       const teleopAttemptShoot = parseBool(els.teleopAttemptShoot.value);
       requireField(teleopAttemptShoot !== null, "Teleop: attempted to shoot is required.");
@@ -416,7 +431,7 @@
 
         auto_mobility: autoMobility,
         auto_climb: autoClimb,
-        auto_fuel_est: Math.trunc(autoFuel),
+        auto_fuel_est: autoFuel,
 
         teleop_attempt_shoot: teleopAttemptShoot,
         teleop_accuracy: teleopAttemptShoot ? teleopAccuracy : "",
