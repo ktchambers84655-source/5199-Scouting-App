@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FRC Scouting (2026) — v1</title>
+  <style>
+    :root { --pad: 16px; --radius: 12px; --border: #d0d7de; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #f6f8fa; color: #111; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: var(--pad); }
+    .card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: var(--pad); box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    .sub { font-size: 13px; color: #555; margin-bottom: 14px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .row1 { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (max-width: 520px) { .row { grid-template-columns: 1fr; } }
+
+    label { font-size: 13px; color: #333; display: block; margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 16px;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .seg { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: #fff;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .btn.primary { background: #0b57d0; color: #fff; border-color: #0b57d0; }
+    .btn.danger { background: #b42318; color: #fff; border-color: #b42318; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border: 1px solid var(--border); border-radius: 999px;
+      font-size: 13px; color: #333; background: #fff;
+    }
+    .hidden { display: none !important; }
+    .steps { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 0; }
+    .step { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; color: #444; background: #fff; }
+    .step.on { background: #e8f0fe; border-color: #c7d2fe; color: #1f3b8a; }
+    .status { margin-top: 10px; font-size: 13px; }
+    .ok { color: #0f7b2d; }
+    .err { color: #b42318; }
+    .topbar { display:flex; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="pill">Season: <strong id="seasonLabel">2026</strong></div>
+      <button class="btn" id="resetAllBtn" type="button" title="Clear saved scout name/event">Reset saved</button>
+    </div>
+
+    <div class="card">
+      <h1>FRC Scouting — Match Submission (v1)</h1>
+      <div class="sub">One scout per robot. Data submits to Google Sheets via Apps Script.</div>
+
+      <div class="steps" id="steps">
+        <div class="step on" data-step="0">Match Info</div>
+        <div class="step" data-step="1">Auto</div>
+        <div class="step" data-step="2">Teleop</div>
+        <div class="step" data-step="3">Endgame</div>
+        <div class="step" data-step="4">Notes</div>
+      </div>
+
+      <!-- Step 0: Match Info -->
+      <div class="row1" id="step0">
+        <div>
+          <label for="event">Event</label>
+          <input id="event" type="text" placeholder="e.g., Ventura Regional" autocomplete="off" />
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="matchNumber">Match #</label>
+            <input id="matchNumber" type="number" inputmode="numeric" min="1" max="999" placeholder="e.g., 12" />
+          </div>
+          <div>
+            <label for="teamNumber">Team #</label>
+            <input id="teamNumber" type="number" inputmode="numeric" min="1" max="99999" placeholder="e.g., 4414" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="scoutName">Scout Name</label>
+            <input id="scoutName" type="text" placeholder="First name or initials" autocomplete="off" />
+          </div>
+          <div>
+            <label for="alliance">Alliance</label>
+            <select id="alliance">
+              <option value="">Select…</option>
+              <option value="red">Red</option>
+              <option value="blue">Blue</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 1: Auto -->
+      <div class="row1 hidden" id="step1">
+        <div class="row">
+          <div>
+            <label for="autoMobility">Auto Mobility</label>
+            <select id="autoMobility">
+              <option value="">Select…</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div>
+            <label for="autoClimb">Auto Climb</label>
+            <select id="autoClimb">
+              <option value="">Select…</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="autoFuel">Auto Fuel Scored (estimate)</label>
+          <input id="autoFuel" type="number" inputmode="numeric" min="0" max="200" placeholder="0–200" />
+        </div>
+      </div>
+
+      <!-- Step 2: Teleop -->
+      <div class="row1 hidden" id="step2">
+        <div>
+          <label for="teleopAttemptShoot">Attempted to shoot (teleop)?</label>
+          <select id="teleopAttemptShoot">
+            <option value="">Select…</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+
+        <div id="accuracyWrap" class="hidden">
+          <label for="teleopAccuracy">Teleop Accuracy</label>
+          <select id="teleopAccuracy">
+            <option value="">Select…</option>
+            <option value="very_inaccurate">Very inaccurate</option>
+            <option value="inaccurate">Inaccurate</option>
+            <option value="mixed">Mixed</option>
+            <option value="accurate">Accurate</option>
+            <option value="very_accurate">Very accurate</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Step 3: Endgame -->
+      <div class="row1 hidden" id="step3">
+        <div>
+          <label for="endgameTowerLevel">Endgame Tower Level</label>
+          <select id="endgameTowerLevel">
+            <option value="">Select…</option>
+            <option value="none">None</option>
+            <option value="l1">Level 1</option>
+            <option value="l2">Level 2</option>
+            <option value="l3">Level 3</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="diedDisabled">Died / Disabled?</label>
+            <select id="diedDisabled">
+              <option value="">Select…</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div>
+            <label for="foulsObserved">Fouls Observed</label>
+            <select id="foulsObserved">
+              <option value="">Select…</option>
+              <option value="0">0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3+">3+</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Notes -->
+      <div class="row1 hidden" id="step4">
+        <div>
+          <label for="notes">Notes</label>
+          <textarea id="notes" placeholder="Short notes (optional)"></textarea>
+        </div>
+
+        <div>
+          <label for="confidence">Confidence (1–5)</label>
+          <select id="confidence">
+            <option value="">Select…</option>
+            <option value="1">1 (Low)</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5 (High)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top: 14px;">
+        <button class="btn" type="button" id="backBtn">Back</button>
+        <button class="btn primary" type="button" id="nextBtn">Next</button>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+
+  <script>
+    // 1) PUT YOUR APPS SCRIPT WEB APP /exec URL HERE
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzhvvLDm_IV9tthHnFh1Nk7ZCrMoXGH7v9ce4-njdp3EgAcBSS3bI-GLf2UBhOegK_W/exec";
+
+    const SEASON = "2026";
+    document.getElementById("seasonLabel").textContent = SEASON;
+
+    const els = {
+      event: document.getElementById("event"),
+      matchNumber: document.getElementById("matchNumber"),
+      teamNumber: document.getElementById("teamNumber"),
+      scoutName: document.getElementById("scoutName"),
+      alliance: document.getElementById("alliance"),
+
+      autoMobility: document.getElementById("autoMobility"),
+      autoClimb: document.getElementById("autoClimb"),
+      autoFuel: document.getElementById("autoFuel"),
+
+      teleopAttemptShoot: document.getElementById("teleopAttemptShoot"),
+      accuracyWrap: document.getElementById("accuracyWrap"),
+      teleopAccuracy: document.getElementById("teleopAccuracy"),
+
+      endgameTowerLevel: document.getElementById("endgameTowerLevel"),
+      diedDisabled: document.getElementById("diedDisabled"),
+      foulsObserved: document.getElementById("foulsObserved"),
+
+      notes: document.getElementById("notes"),
+      confidence: document.getElementById("confidence"),
+
+      backBtn: document.getElementById("backBtn"),
+      nextBtn: document.getElementById("nextBtn"),
+      status: document.getElementById("status"),
+      resetAllBtn: document.getElementById("resetAllBtn"),
+      steps: document.getElementById("steps"),
+    };
+
+    const stepIds = ["step0", "step1", "step2", "step3", "step4"];
+    let step = 0;
+    let isSubmitting = false;
+
+    // Persist scout name + event for convenience
+    const LS_SCOUT = "frc_scout_name";
+    const LS_EVENT = "frc_event_name";
+
+    function setStatus(msg, kind) {
+      els.status.textContent = msg || "";
+      els.status.className = "status " + (kind ? kind : "");
+    }
+
+    function showStep(n) {
+      step = n;
+      stepIds.forEach((id, i) => {
+        const node = document.getElementById(id);
+        if (i === n) node.classList.remove("hidden");
+        else node.classList.add("hidden");
+      });
+
+      // Step indicator
+      [...els.steps.querySelectorAll(".step")].forEach((s) => {
+        const idx = Number(s.getAttribute("data-step"));
+        if (idx === n) s.classList.add("on");
+        else s.classList.remove("on");
+      });
+
+      els.backBtn.disabled = (n === 0) || isSubmitting;
+      els.nextBtn.disabled = isSubmitting;
+
+      els.nextBtn.textContent = (n === stepIds.length - 1) ? "Submit" : "Next";
+      setStatus("");
+      updateTeleopConditionalUI();
+    }
+
+    function updateTeleopConditionalUI() {
+      const val = els.teleopAttemptShoot.value;
+      if (val === "true") {
+        els.accuracyWrap.classList.remove("hidden");
+      } else {
+        els.accuracyWrap.classList.add("hidden");
+        els.teleopAccuracy.value = "";
+      }
+    }
+
+    function parseBool(v) {
+      if (v === "true") return true;
+      if (v === "false") return false;
+      return null;
+    }
+
+    function requireField(condition, message) {
+      if (!condition) throw new Error(message);
+    }
+
+    function buildPayload() {
+      const event = els.event.value.trim();
+      const scoutName = els.scoutName.value.trim();
+
+      const matchNumber = Number(els.matchNumber.value);
+      const teamNumber = Number(els.teamNumber.value);
+
+      requireField(event.length > 0, "Event is required.");
+      requireField(scoutName.length >= 2, "Scout Name is required (at least 2 chars).");
+      requireField(Number.isFinite(matchNumber) && matchNumber >= 1, "Match # must be a number >= 1.");
+      requireField(Number.isFinite(teamNumber) && teamNumber >= 1, "Team # must be a number >= 1.");
+      requireField(els.alliance.value === "red" || els.alliance.value === "blue", "Alliance is required.");
+
+      const autoMobility = parseBool(els.autoMobility.value);
+      const autoClimb = parseBool(els.autoClimb.value);
+      requireField(autoMobility !== null, "Auto Mobility is required.");
+      requireField(autoClimb !== null, "Auto Climb is required.");
+
+      let autoFuel = 0;
+      if (els.autoFuel.value.trim() !== "") {
+        autoFuel = Number(els.autoFuel.value);
+        requireField(Number.isFinite(autoFuel) && autoFuel >= 0, "Auto Fuel must be a number >= 0.");
+      }
+
+      const teleopAttemptShoot = parseBool(els.teleopAttemptShoot.value);
+      requireField(teleopAttemptShoot !== null, "Teleop: attempted to shoot is required.");
+
+      const teleopAccuracy = els.teleopAccuracy.value.trim();
+      if (teleopAttemptShoot === true) {
+        requireField(teleopAccuracy.length > 0, "Teleop Accuracy is required if they attempted to shoot.");
+      }
+
+      requireField(els.endgameTowerLevel.value.trim().length > 0, "Endgame Tower Level is required.");
+
+      const diedDisabled = parseBool(els.diedDisabled.value);
+      requireField(diedDisabled !== null, "Died/Disabled is required.");
+
+      requireField(els.foulsObserved.value.trim().length > 0, "Fouls Observed is required.");
+
+      requireField(els.confidence.value.trim().length > 0, "Confidence is required.");
+
+      // Save convenient fields
+      localStorage.setItem(LS_SCOUT, scoutName);
+      localStorage.setItem(LS_EVENT, event);
+
+      return {
+        season: SEASON,
+        event: event,
+        match_number: matchNumber,
+        team_number: teamNumber,
+        scout_name: scoutName,
+        alliance: els.alliance.value,
+
+        auto_mobility: autoMobility,
+        auto_climb: autoClimb,
+        auto_fuel_est: Math.trunc(autoFuel),
+
+        teleop_attempt_shoot: teleopAttemptShoot,
+        teleop_accuracy: teleopAttemptShoot ? teleopAccuracy : "",
+
+        endgame_tower_level: els.endgameTowerLevel.value,
+
+        died_disabled: diedDisabled,
+        fouls_observed: els.foulsObserved.value,
+
+        notes: els.notes.value.trim(),
+        confidence: Number(els.confidence.value),
+      };
+    }
+
+    async function submit() {
+      if (!WEB_APP_URL || WEB_APP_URL.includes("WEB_APP_URL_HERE")) {
+        throw new Error("Set WEB_APP_URL in the HTML to your Apps Script /exec URL.");
+      }
+
+      const payload = buildPayload();
+
+      isSubmitting = true;
+      els.nextBtn.disabled = true;
+      els.backBtn.disabled = true;
+      setStatus("Submitting…", "");
+
+      // Use text/plain to avoid CORS preflight pain with Apps Script.
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+      });
+
+      const text = await res.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch (_) {}
+
+      isSubmitting = false;
+      els.nextBtn.disabled = false;
+      els.backBtn.disabled = (step === 0);
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+      if (json && json.ok === false) {
+        throw new Error(json.error || "Submission failed.");
+      }
+
+      setStatus("Submitted successfully. Ready for the next robot.", "ok");
+      resetForNext();
+    }
+
+    function resetForNext() {
+      // Keep event + scout name, clear match/team and performance fields
+      els.matchNumber.value = "";
+      els.teamNumber.value = "";
+      els.alliance.value = "";
+
+      els.autoMobility.value = "";
+      els.autoClimb.value = "";
+      els.autoFuel.value = "";
+
+      els.teleopAttemptShoot.value = "";
+      els.teleopAccuracy.value = "";
+      updateTeleopConditionalUI();
+
+      els.endgameTowerLevel.value = "";
+      els.diedDisabled.value = "";
+      els.foulsObserved.value = "";
+
+      els.notes.value = "";
+      els.confidence.value = "";
+
+      showStep(0);
+      // Put cursor at match # for speed
+      setTimeout(() => els.matchNumber.focus(), 50);
+    }
+
+    function loadSaved() {
+      const savedScout = localStorage.getItem(LS_SCOUT);
+      const savedEvent = localStorage.getItem(LS_EVENT);
+      if (savedScout) els.scoutName.value = savedScout;
+      if (savedEvent) els.event.value = savedEvent;
+    }
+
+    function clearSaved() {
+      localStorage.removeItem(LS_SCOUT);
+      localStorage.removeItem(LS_EVENT);
+      els.scoutName.value = "";
+      els.event.value = "";
+      setStatus("Cleared saved scout name and event.", "");
+    }
+
+    function validateCurrentStepOrThrow() {
+      // Light validation per step to reduce backtracking
+      if (step === 0) {
+        requireField(els.event.value.trim().length > 0, "Event is required.");
+        requireField(els.scoutName.value.trim().length >= 2, "Scout Name is required (>= 2 chars).");
+        requireField(els.alliance.value === "red" || els.alliance.value === "blue", "Alliance is required.");
+        const mn = Number(els.matchNumber.value);
+        const tn = Number(els.teamNumber.value);
+        requireField(Number.isFinite(mn) && mn >= 1, "Match # must be >= 1.");
+        requireField(Number.isFinite(tn) && tn >= 1, "Team # must be >= 1.");
+      }
+      if (step === 1) {
+        requireField(parseBool(els.autoMobility.value) !== null, "Auto Mobility is required.");
+        requireField(parseBool(els.autoClimb.value) !== null, "Auto Climb is required.");
+      }
+      if (step === 2) {
+        const tas = parseBool(els.teleopAttemptShoot.value);
+        requireField(tas !== null, "Teleop: attempted to shoot is required.");
+        if (tas === true) {
+          requireField(els.teleopAccuracy.value.trim().length > 0, "Teleop Accuracy is required if they shot.");
+        }
+      }
+      if (step === 3) {
+        requireField(els.endgameTowerLevel.value.trim().length > 0, "Endgame Tower Level is required.");
+        requireField(parseBool(els.diedDisabled.value) !== null, "Died/Disabled is required.");
+        requireField(els.foulsObserved.value.trim().length > 0, "Fouls Observed is required.");
+      }
+      if (step === 4) {
+        requireField(els.confidence.value.trim().length > 0, "Confidence is required.");
+      }
+    }
+
+    // Wiring
+    els.teleopAttemptShoot.addEventListener("change", updateTeleopConditionalUI);
+    els.resetAllBtn.addEventListener("click", clearSaved);
+
+    els.backBtn.addEventListener("click", () => {
+      if (isSubmitting) return;
+      showStep(Math.max(0, step - 1));
+    });
+
+    els.nextBtn.addEventListener("click", async () => {
+      if (isSubmitting) return;
+
+      try {
+        if (step < stepIds.length - 1) {
+          validateCurrentStepOrThrow();
+          showStep(step + 1);
+          return;
+        }
+        // Submit
+        await submit();
+      } catch (err) {
+        setStatus(err.message || String(err), "err");
+      }
+    });
+
+    // Init
+    loadSaved();
+    showStep(0);
+  </script>
+</body>
+</html>
