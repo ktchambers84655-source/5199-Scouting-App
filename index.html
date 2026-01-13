@@ -98,6 +98,10 @@
         </div>
 
         <div class="row">
+          <div class="pill" id="scoutingLabel">You are scouting: (not set)</div>
+        </div>
+
+        <div class="row">
           <div>
             <label for="scoutName">Scout Name</label>
             <input id="scoutName" type="text" placeholder="First name or initials" autocomplete="off" />
@@ -110,9 +114,18 @@
               <option value="blue">Blue</option>
             </select>
           </div>
+          <div>
+            <label for="alliancePos">Alliance Position</label>
+            <select id="alliancePos">
+              <option value="">Select…</option>
+              <option value="1">Drive Station 1</option>
+              <option value="2">Drive Station 2</option>
+              <option value="3">Drive Station 3</option>
+            </select>
+          </div>
         </div>
       </div>
-
+      
       <!-- Step 1: Auto -->
       <div class="row1 hidden" id="step1">
         <div class="row">
@@ -265,6 +278,8 @@
       teamNumber: document.getElementById("teamNumber"),
       scoutName: document.getElementById("scoutName"),
       alliance: document.getElementById("alliance"),
+      alliancePos: document.getElementById("alliancePos"),
+      scoutingLabel: document.getElementById("scoutingLabel"),
 
       autoMobility: document.getElementById("autoMobility"),
       autoClimb: document.getElementById("autoClimb"),
@@ -273,6 +288,8 @@
       teleopAttemptShoot: document.getElementById("teleopAttemptShoot"),
       accuracyWrap: document.getElementById("accuracyWrap"),
       teleopAccuracy: document.getElementById("teleopAccuracy"),
+      teleopCycles: document.getElementById("teleopCycles"),
+      robotType: document.getElementById("robotType"),
 
       endgameTowerLevel: document.getElementById("endgameTowerLevel"),
       diedDisabled: document.getElementById("diedDisabled"),
@@ -295,6 +312,11 @@
     // Persist scout name + event for convenience
     const LS_SCOUT = "frc_scout_name";
     const LS_EVENT = "frc_event_name";
+    const LS_ALLIANCE = "frc_alliance";
+    const LS_ALLIANCE_POS = "frc_alliance_pos";
+    const LS_MATCH = "frc_last_match_number";
+    const LS_EVENT_KEY = "frc_event_key";
+
 
     function setStatus(msg, kind) {
       els.status.textContent = msg || "";
@@ -366,6 +388,14 @@
         if (tas === true) {
           requireField(els.teleopAccuracy.value.trim().length > 0, "Teleop Accuracy is required if they shot.");
         }
+        const cycles = Number(els.teleopCycles.value);
+        requireField(Number.isFinite(cycles) && cycles >= 0, "Teleop Cycles must be a number >= 0.");
+        
+        requireField(
+          els.robotType.value === "trench" || els.robotType.value === "bump" || els.robotType.value === "both",
+          "Robot Type is required."
+        );
+
       }
 
       if (step === 3) {
@@ -404,6 +434,12 @@
       const teleopAttemptShoot = parseBool(els.teleopAttemptShoot.value);
       requireField(teleopAttemptShoot !== null, "Teleop: attempted to shoot is required.");
 
+      const teleopCycles = Number(els.teleopCycles.value);
+      requireField(Number.isFinite(teleopCycles) && teleopCycles >= 0, "Teleop Cycles must be a number >= 0.");
+      
+      const robotType = els.robotType.value.trim();
+      requireField(robotType.length > 0, "Robot Type is required.");
+
       const teleopAccuracy = els.teleopAccuracy.value.trim();
       if (teleopAttemptShoot === true) {
         requireField(teleopAccuracy.length > 0, "Teleop Accuracy is required if they attempted to shoot.");
@@ -435,7 +471,9 @@
 
         teleop_attempt_shoot: teleopAttemptShoot,
         teleop_accuracy: teleopAttemptShoot ? teleopAccuracy : "",
-
+        teleop_cycles: Math.trunc(teleopCycles),
+        robot_type: robotType,
+        
         endgame_tower_level: els.endgameTowerLevel.value,
 
         died_disabled: diedDisabled,
@@ -484,9 +522,57 @@
       }
 
       setStatus("Submitted successfully. Ready for the next robot.", "ok");
+      localStorage.setItem(LS_MATCH, String(Number(els.matchNumber.value)));
+      localStorage.setItem(LS_ALLIANCE, els.alliance.value);
+      localStorage.setItem(LS_ALLIANCE_POS, els.alliancePos.value);
       resetForNext();
     }
 
+    function updateScoutingLabel_() {
+      const tn = els.teamNumber.value.trim();
+      els.scoutingLabel.textContent = tn ? `You are scouting: Team ${tn}` : "You are scouting: (not set)";
+    }
+
+    function eventNameToTbaKey_(eventName) {
+      // Replace with your actual 2026 TBA event keys
+      const map = {
+        "Ventura Regional": "2026XXXX",
+        "OC Regional": "2026YYYY",
+        "Champs": "2026cmp",  // example only
+        "Test": "2026test",   // example only
+      };
+      return map[eventName] || "";
+    }
+    
+    async function maybeAutofillTeam_() {
+      if (els.teamNumber.value.trim() !== "") {
+        updateScoutingLabel_();
+        return;
+      }
+    
+      const eventName = els.event.value.trim();
+      const matchNumber = Number(els.matchNumber.value);
+      const alliance = els.alliance.value;
+      const pos = els.alliancePos.value;
+    
+      if (!eventName || !Number.isFinite(matchNumber) || matchNumber < 1 || !alliance || !pos) return;
+    
+      const eventKey = eventNameToTbaKey_(eventName);
+      if (!eventKey) return;
+    
+      try {
+        const url = `${WEB_APP_URL}?action=tba_match_team&event_key=${encodeURIComponent(eventKey)}&match_number=${encodeURIComponent(matchNumber)}&alliance=${encodeURIComponent(alliance)}&position=${encodeURIComponent(pos)}`;
+        const res = await fetch(url, { method: "GET" });
+        const data = await res.json();
+    
+        if (data && data.ok && data.team_number) {
+          els.teamNumber.value = String(data.team_number);
+          updateScoutingLabel_();
+        }
+      } catch (_) {}
+    }
+
+    
     function resetForNext() {
       // Keep event + scout name, clear match/team and performance fields
       els.matchNumber.value = "";
@@ -499,6 +585,9 @@
 
       els.teleopAttemptShoot.value = "";
       els.teleopAccuracy.value = "";
+      els.teleopCycles.value = "";
+      els.robotType.value = "";
+
       updateTeleopConditionalUI();
 
       els.endgameTowerLevel.value = "";
@@ -515,21 +604,67 @@
     function loadSaved() {
       const savedScout = localStorage.getItem(LS_SCOUT);
       const savedEvent = localStorage.getItem(LS_EVENT);
+      const savedAlliance = localStorage.getItem(LS_ALLIANCE);
+      const savedPos = localStorage.getItem(LS_ALLIANCE_POS);
+      const savedMatch = localStorage.getItem(LS_MATCH);
+    
       if (savedScout) els.scoutName.value = savedScout;
       if (savedEvent) els.event.value = savedEvent;
+    
+      if (savedAlliance) els.alliance.value = savedAlliance;
+      if (savedPos) els.alliancePos.value = savedPos;
+    
+      // Auto-increment match number (+1)
+      if (savedMatch) {
+        const n = Number(savedMatch);
+        if (Number.isFinite(n) && n >= 0) els.matchNumber.value = String(n + 1);
+      }
+    
+      updateScoutingLabel_();
     }
+
 
     function clearSaved() {
       localStorage.removeItem(LS_SCOUT);
       localStorage.removeItem(LS_EVENT);
       els.scoutName.value = "";
       els.event.value = "";
+      localStorage.removeItem(LS_ALLIANCE);
+      localStorage.removeItem(LS_ALLIANCE_POS);
+      localStorage.removeItem(LS_MATCH);
       setStatus("Cleared saved scout name and event.", "");
     }
 
     // Wiring
     els.teleopAttemptShoot.addEventListener("change", updateTeleopConditionalUI);
     els.resetAllBtn.addEventListener("click", clearSaved);
+
+    els.alliance.addEventListener("change", () => {
+      localStorage.setItem(LS_ALLIANCE, els.alliance.value);
+      updateScoutingLabel_();
+      maybeAutofillTeam_();
+    });
+
+    els.teamNumber.addEventListener("input", updateScoutingLabel_);
+    
+    els.alliancePos.addEventListener("change", () => {
+      localStorage.setItem(LS_ALLIANCE_POS, els.alliancePos.value);
+      maybeAutofillTeam_();
+    });
+    
+    els.matchNumber.addEventListener("change", () => {
+      maybeAutofillTeam_();
+    });
+    
+    els.event.addEventListener("change", () => {
+      localStorage.setItem(LS_EVENT, els.event.value);
+      maybeAutofillTeam_();
+    });
+    
+    els.scoutName.addEventListener("change", () => {
+      localStorage.setItem(LS_SCOUT, els.scoutName.value.trim());
+    });
+
 
     els.backBtn.addEventListener("click", () => {
       if (isSubmitting) return;
