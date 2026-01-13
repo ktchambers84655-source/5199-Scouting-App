@@ -444,6 +444,15 @@
         wireToggleGroup("autoFuel", els.autoFuel);
         updateAutoPathUI();
       }
+      if (n === 1) {
+      // wait 1-2 frames so layout settles after display:none -> block
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          resizeCanvasToImage_();
+        });
+  });
+}
+
 
     }
 
@@ -816,6 +825,13 @@
 
     els.autoPathEnabled.addEventListener("change", () => {
       updateAutoPathUI();
+      if (els.autoPathEnabled.value === "true") {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resizeCanvasToImage_();
+          });
+        });
+      }
     });
 
     let autoPathStrokes = []; // [{pts:[[xN,yN],...]}]
@@ -912,6 +928,33 @@
       redrawAutoPath_();
     }
 
+    function resizeCanvasToImage_() {
+      const canvas = els.autoPathCanvas;
+      const img = els.autoFieldImg;
+      if (!canvas || !img) return;
+
+      const rect = img.getBoundingClientRect();
+
+      // If step is hidden or layout not ready, rect will be 0x0.
+      if (rect.width < 10 || rect.height < 10) {
+        requestAnimationFrame(resizeCanvasToImage_);
+        return;
+      }
+
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width = Math.max(1, Math.round(rect.width * dpr));
+      canvas.height = Math.max(1, Math.round(rect.height * dpr));
+
+      canvas.style.width = rect.width + "px";
+      canvas.style.height = rect.height + "px";
+
+      _ctx = canvas.getContext("2d");
+      // draw in CSS pixels
+      _ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      redrawAutoPath_();
+    }
 
 
 
@@ -987,6 +1030,10 @@
 
 
     els.autoFieldImg.addEventListener("load", resizeCanvasToImage_);
+    if (els.autoFieldImg.complete) {
+      resizeCanvasToImage_();
+    }
+
     window.addEventListener("resize", resizeCanvasToImage_);
     wireAutoCanvas_();
 
