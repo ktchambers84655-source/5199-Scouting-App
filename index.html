@@ -375,6 +375,8 @@
         const tn = Number(els.teamNumber.value);
         requireField(Number.isFinite(mn) && mn >= 1, "Match # must be >= 1.");
         requireField(Number.isFinite(tn) && tn >= 1, "Team # must be >= 1.");
+        requireField(els.alliancePos.value === "1" || els.alliancePos.value === "2" || els.alliancePos.value === "3",
+         "Alliance Position is required.");
       }
 
       if (step === 1) {
@@ -464,6 +466,8 @@
         team_number: teamNumber,
         scout_name: scoutName,
         alliance: els.alliance.value,
+        alliance_pos: els.alliancePos.value,
+
 
         auto_mobility: autoMobility,
         auto_climb: autoClimb,
@@ -529,9 +533,15 @@
     }
 
     function updateScoutingLabel_() {
+      const eventName = els.event.value.trim() || "(event)";
+      const mn = els.matchNumber.value.trim() ? `Match ${els.matchNumber.value.trim()}` : "Match ?";
+      const a = els.alliance.value ? els.alliance.value.toUpperCase() : "ALLIANCE ?";
+      const p = els.alliancePos.value ? els.alliancePos.value : "?";
       const tn = els.teamNumber.value.trim();
-      els.scoutingLabel.textContent = tn ? `You are scouting: Team ${tn}` : "You are scouting: (not set)";
-    }
+
+      const teamPart = tn ? `Team ${tn}` : "Team ?";
+      els.scoutingLabel.textContent = `You are scouting: ${eventName} • ${mn} • ${a} ${p} — ${teamPart}`;
+}
 
     function eventNameToTbaKey_(eventName) {
       // Replace with your actual 2026 TBA event keys
@@ -572,12 +582,14 @@
       } catch (_) {}
     }
 
-    
     function resetForNext() {
       // Keep event + scout name, clear match/team and performance fields
       els.matchNumber.value = "";
       els.teamNumber.value = "";
-      els.alliance.value = "";
+      // Keep the assignment defaults between robots
+      els.alliance.value = localStorage.getItem(LS_ALLIANCE) || "red";
+      els.alliancePos.value = localStorage.getItem(LS_ALLIANCE_POS) || "1";
+
 
       els.autoMobility.value = "";
       els.autoClimb.value = "";
@@ -619,10 +631,12 @@
         const n = Number(savedMatch);
         if (Number.isFinite(n) && n >= 0) els.matchNumber.value = String(n + 1);
       }
-    
+      // If nothing saved yet, default to Red DS1
+      if (!els.alliance.value) els.alliance.value = "red";
+      if (!els.alliancePos.value) els.alliancePos.value = "1";
+
       updateScoutingLabel_();
     }
-
 
     function clearSaved() {
       localStorage.removeItem(LS_SCOUT);
