@@ -35,6 +35,37 @@
       font-size: 15px;
       cursor: pointer;
     }
+    .toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .toggle .btn {
+      width: 100%;
+    }
+    .toggle .btn.on {
+      background: #e8f0fe;
+      border-color: #c7d2fe;
+      color: #1f3b8a;
+      font-weight: 600;
+    }
+
+    .choice4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 520px) {
+      .choice4 { grid-template-columns: 1fr 1fr; }
+    }
+    .choice4 .btn { width: 100%; }
+    .choice4 .btn.on {
+      background: #e8f0fe;
+      border-color: #c7d2fe;
+      color: #1f3b8a;
+      font-weight: 600;
+    }
+
     .btn.primary { background: #0b57d0; color: #fff; border-color: #0b57d0; }
     .btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .pill {
@@ -130,16 +161,26 @@
       <div class="row1 hidden" id="step1">
         <div class="row">
           <div>
-            <label for="autoMobility">Auto Mobility</label>
-            <select id="autoMobility">
+            <label>Auto Mobility</label>
+            <div class="toggle" data-toggle="autoMobility">
+              <button class="btn" type="button" data-value="true">Yes</button>
+              <button class="btn" type="button" data-value="false">No</button>
+            </div>
+            <!-- keep the select hidden for payload compatibility -->
+            <select id="autoMobility" class="hidden">
               <option value="">Select…</option>
               <option value="true">Yes</option>
               <option value="false">No</option>
             </select>
           </div>
+
           <div>
-            <label for="autoClimb">Auto Climb</label>
-            <select id="autoClimb">
+            <label>Auto Climb</label>
+            <div class="toggle" data-toggle="autoClimb">
+              <button class="btn" type="button" data-value="true">Yes</button>
+              <button class="btn" type="button" data-value="false">No</button>
+            </div>
+            <select id="autoClimb" class="hidden">
               <option value="">Select…</option>
               <option value="true">Yes</option>
               <option value="false">No</option>
@@ -148,16 +189,23 @@
         </div>
 
         <div>
-          <label for="autoFuel">Auto Fuel Scored</label>
-          <select id="autoFuel">
+          <label>Auto Fuel Scored</label>
+          <div class="choice4" data-toggle="autoFuel">
+            <button class="btn" type="button" data-value="0">0</button>
+            <button class="btn" type="button" data-value="1-9">1–9</button>
+            <button class="btn" type="button" data-value="10-19">10–19</button>
+            <button class="btn" type="button" data-value="20+">20+</button>
+          </div>
+          <select id="autoFuel" class="hidden">
             <option value="">Select…</option>
             <option value="0">0</option>
             <option value="1-9">1–9</option>
             <option value="10-19">10–19</option>
             <option value="20+">20+</option>
           </select>
-
         </div>
+
+        <button class="btn" type="button" id="autoClearBtn">Clear Auto</button>
       </div>
 
       <!-- Step 2: Teleop -->
@@ -382,7 +430,9 @@
       if (step === 1) {
         requireField(parseBool(els.autoMobility.value) !== null, "Auto Mobility is required.");
         requireField(parseBool(els.autoClimb.value) !== null, "Auto Climb is required.");
+        requireField(els.autoFuel.value.trim().length > 0, "Auto Fuel Scored is required.");
       }
+
 
       if (step === 2) {
         const tas = parseBool(els.teleopAttemptShoot.value);
