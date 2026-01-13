@@ -203,6 +203,38 @@
             <option value="10-19">10–19</option>
             <option value="20+">20+</option>
           </select>
+
+          <div>
+          <label>Record auto path?</label>
+          <div class="toggle" data-toggle="autoPathEnabled">
+            <button class="btn" type="button" data-value="true">Yes</button>
+            <button class="btn" type="button" data-value="false">No</button>
+          </div>
+          <select id="autoPathEnabled" class="hidden">
+            <option value="false">No</option>
+            <option value="true">Yes</option>
+          </select>
+        </div>
+
+        <div id="autoPathWrap" class="hidden">
+          <label>Auto Path (optional)</label>
+
+          <div style="position: relative; width: 100%; border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
+            <img id="autoFieldImg" src="FIELD_IMAGE_URL_HERE" alt="Field map"
+                style="display:block; width:100%; height:auto; user-select:none; -webkit-user-drag:none;" />
+            <canvas id="autoPathCanvas"
+                    style="position:absolute; left:0; top:0; width:100%; height:100%; touch-action:none;"></canvas>
+          </div>
+
+          <div class="row" style="margin-top: 10px;">
+            <button class="btn" type="button" id="autoPathUndoBtn">Undo</button>
+            <button class="btn" type="button" id="autoPathClearBtn">Clear</button>
+          </div>
+
+          <div class="sub" style="margin: 8px 0 0;">
+            Tip: Use your finger/stylus. Undo removes the last stroke.
+          </div>
+        </div>
         </div>
 
         <button class="btn" type="button" id="autoClearBtn">Clear Auto</button>
@@ -332,6 +364,13 @@
       autoMobility: document.getElementById("autoMobility"),
       autoClimb: document.getElementById("autoClimb"),
       autoFuel: document.getElementById("autoFuel"),
+      autoPathEnabled: document.getElementById("autoPathEnabled"),
+      autoPathWrap: document.getElementById("autoPathWrap"),
+      autoFieldImg: document.getElementById("autoFieldImg"),
+      autoPathCanvas: document.getElementById("autoPathCanvas"),
+      autoPathUndoBtn: document.getElementById("autoPathUndoBtn"),
+      autoPathClearBtn: document.getElementById("autoPathClearBtn"),
+
 
       teleopAttemptShoot: document.getElementById("teleopAttemptShoot"),
       accuracyWrap: document.getElementById("accuracyWrap"),
@@ -396,6 +435,7 @@
         wireToggleGroup("autoMobility", els.autoMobility);
         wireToggleGroup("autoClimb", els.autoClimb);
         wireToggleGroup("autoFuel", els.autoFuel);
+        updateAutoPathUI();
       }
 
     }
@@ -488,6 +528,10 @@
       const autoFuel = els.autoFuel.value.trim();
       requireField(autoFuel.length > 0, "Auto Fuel Scored is required.");
 
+      const autoPathEnabled = els.autoPathEnabled.value === "true";
+      const autoPath = (autoPathEnabled && autoPathStrokes.length > 0)
+        ? { strokes: autoPathStrokes }
+        : null;
 
       const teleopAttemptShoot = parseBool(els.teleopAttemptShoot.value);
       requireField(teleopAttemptShoot !== null, "Teleop: attempted to shoot is required.");
@@ -528,6 +572,8 @@
         auto_mobility: autoMobility,
         auto_climb: autoClimb,
         auto_fuel_est: autoFuel,
+        auto_path: autoPath,
+
 
         teleop_attempt_shoot: teleopAttemptShoot,
         teleop_accuracy: teleopAttemptShoot ? teleopAccuracy : "",
@@ -657,6 +703,10 @@
       els.autoMobility.value = "";
       els.autoClimb.value = "";
       els.autoFuel.value = "";
+      els.autoPathEnabled.value = "false";
+      updateAutoPathUI();
+      clearAutoPath_();
+
 
       els.teleopAttemptShoot.value = "";
       els.teleopAccuracy.value = "";
@@ -712,37 +762,153 @@
       setStatus("Cleared saved scout name and event.", "");
     }
 
+    const _wiredToggles = new Set();
+
     function setToggleValue(selectEl, wrapEl, value) {
       selectEl.value = value || "";
-
       const buttons = wrapEl.querySelectorAll('button[data-value]');
       buttons.forEach((b) => b.classList.remove("on"));
-
       if (!value) return;
-
       buttons.forEach((b) => {
         b.classList.toggle("on", b.getAttribute("data-value") === value);
       });
     }
 
-
     function wireToggleGroup(toggleAttr, selectEl) {
       const wrap = document.querySelector(`[data-toggle="${toggleAttr}"]`);
       if (!wrap) return;
 
-      const buttons = wrap.querySelectorAll('button[data-value]');
+      // prevent double-wiring
+      if (_wiredToggles.has(toggleAttr)) {
+        if (selectEl.value) setToggleValue(selectEl, wrap, selectEl.value);
+        return;
+      }
+      _wiredToggles.add(toggleAttr);
 
-      // bind directly to each button (more reliable than delegation)
-      buttons.forEach((btn) => {
+      wrap.querySelectorAll('button[data-value]').forEach((btn) => {
         btn.addEventListener("click", () => {
           const value = btn.getAttribute("data-value");
           setToggleValue(selectEl, wrap, value);
+          selectEl.dispatchEvent(new Event("change"));
         });
       });
 
-      // initial paint
-      if (selectEl.value) setToggleValue(selectEl, wrap, selectEl.value);
+      // default if empty and has a "false" option
+      if (!selectEl.value && [...selectEl.options].some(o => o.value === "false")) {
+        selectEl.value = "false";
+      }
+
+      setToggleValue(selectEl, wrap, selectEl.value);
     }
+
+    function updateAutoPathUI() {
+      const enabled = els.autoPathEnabled.value === "true";
+      if (enabled) els.autoPathWrap.classList.remove("hidden");
+      else els.autoPathWrap.classList.add("hidden");
+    }
+
+    els.autoPathEnabled.addEventListener("change", () => {
+      updateAutoPathUI();
+    });
+
+    let autoPathStrokes = []; // [{pts:[[xN,yN],...]}]
+    let _drawing = false;
+    let _currentStroke = null;
+    let _ctx = null;
+
+    function resizeCanvasToImage_() {
+      const canvas = els.autoPathCanvas;
+      const img = els.autoFieldImg;
+      if (!canvas || !img) return;
+
+      const rect = img.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width = Math.max(1, Math.round(rect.width * dpr));
+      canvas.height = Math.max(1, Math.round(rect.height * dpr));
+
+      canvas.style.width = rect.width + "px";
+      canvas.style.height = rect.height + "px";
+
+      _ctx = canvas.getContext("2d");
+      _ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixels
+      redrawAutoPath_();
+    }
+
+    function getNormPoint_(e) {
+      const rect = els.autoPathCanvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      // clamp
+      return [Math.max(0, Math.min(1, x)), Math.max(0, Math.min(1, y))];
+    }
+
+    function redrawAutoPath_() {
+      if (!_ctx) return;
+      const canvas = els.autoPathCanvas;
+      const rect = canvas.getBoundingClientRect();
+      _ctx.clearRect(0, 0, rect.width, rect.height);
+
+      _ctx.lineCap = "round";
+      _ctx.lineJoin = "round";
+      _ctx.lineWidth = 4;
+      _ctx.strokeStyle = "#111";
+
+      autoPathStrokes.forEach((s) => {
+        const pts = s.pts;
+        if (!pts || pts.length < 2) return;
+        _ctx.beginPath();
+        _ctx.moveTo(pts[0][0] * rect.width, pts[0][1] * rect.height);
+        for (let i = 1; i < pts.length; i++) {
+          _ctx.lineTo(pts[i][0] * rect.width, pts[i][1] * rect.height);
+        }
+        _ctx.stroke();
+      });
+    }
+
+    function wireAutoCanvas_() {
+      const canvas = els.autoPathCanvas;
+      if (!canvas) return;
+
+      // Ensure we only wire once
+      if (canvas._wired) return;
+      canvas._wired = true;
+
+      canvas.addEventListener("pointerdown", (e) => {
+        if (els.autoPathEnabled.value !== "true") return;
+        _drawing = true;
+        canvas.setPointerCapture(e.pointerId);
+        _currentStroke = { pts: [getNormPoint_(e)] };
+        autoPathStrokes.push(_currentStroke);
+        redrawAutoPath_();
+      });
+
+      canvas.addEventListener("pointermove", (e) => {
+        if (!_drawing || !_currentStroke) return;
+        _currentStroke.pts.push(getNormPoint_(e));
+        redrawAutoPath_();
+      });
+
+      function end(e) {
+        if (!_drawing) return;
+        _drawing = false;
+        _currentStroke = null;
+        try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+      }
+
+      canvas.addEventListener("pointerup", end);
+      canvas.addEventListener("pointercancel", end);
+    }
+
+    function clearAutoPath_() {
+      autoPathStrokes = [];
+      redrawAutoPath_();
+    }
+
+
+
+
+
 
 
     // Wiring
@@ -799,6 +965,34 @@
     wireToggleGroup("autoMobility", els.autoMobility);
     wireToggleGroup("autoClimb", els.autoClimb);
     wireToggleGroup("autoFuel", els.autoFuel);
+    wireToggleGroup("autoMobility", els.autoMobility);
+    wireToggleGroup("autoClimb", els.autoClimb);
+    wireToggleGroup("autoFuel", els.autoFuel);
+    wireToggleGroup("autoPathEnabled", els.autoPathEnabled);
+
+    els.autoMobility.addEventListener("change", () => {
+      if (els.autoMobility.value === "false") {
+        els.autoPathEnabled.value = "false";
+        updateAutoPathUI();
+        clearAutoPath_();
+      }
+    });
+
+
+    els.autoFieldImg.addEventListener("load", resizeCanvasToImage_);
+    window.addEventListener("resize", resizeCanvasToImage_);
+    wireAutoCanvas_();
+
+    els.autoPathUndoBtn.addEventListener("click", () => {
+      autoPathStrokes.pop();
+      redrawAutoPath_();
+    });
+    els.autoPathClearBtn.addEventListener("click", () => {
+      clearAutoPath_();
+    });
+
+
+
 
     const autoClearBtn = document.getElementById("autoClearBtn");
     if (autoClearBtn) {
