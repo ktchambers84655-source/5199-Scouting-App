@@ -584,7 +584,14 @@
 
     function resetForNext() {
       // Keep event + scout name, clear match/team and performance fields
-      els.matchNumber.value = "";
+      const savedMatch = localStorage.getItem(LS_MATCH);
+      if (savedMatch) {
+        const n = Number(savedMatch);
+        els.matchNumber.value = (Number.isFinite(n) && n >= 1) ? String(n + 1) : "";
+      } else {
+        els.matchNumber.value = "";
+      }
+
       els.teamNumber.value = "";
       // Keep the assignment defaults between robots
       els.alliance.value = localStorage.getItem(LS_ALLIANCE) || "red";
