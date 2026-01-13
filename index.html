@@ -706,6 +706,29 @@
       setStatus("Cleared saved scout name and event.", "");
     }
 
+    function setToggleValue(selectEl, wrapEl, value) {
+      selectEl.value = value;
+      [...wrapEl.querySelectorAll(".btn")].forEach((b) => {
+        b.classList.toggle("on", b.getAttribute("data-value") === value);
+      });
+    }
+
+    function wireToggleGroup(toggleAttr, selectEl) {
+      const wrap = document.querySelector(`[data-toggle="${toggleAttr}"]`);
+      if (!wrap) return;
+
+      wrap.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-value]");
+        if (!btn) return;
+        const value = btn.getAttribute("data-value");
+        setToggleValue(selectEl, wrap, value);
+      });
+
+      // initialize visual state if select already has a value
+      if (selectEl.value) setToggleValue(selectEl, wrap, selectEl.value);
+    }
+
+
     // Wiring
     els.teleopAttemptShoot.addEventListener("change", updateTeleopConditionalUI);
     els.resetAllBtn.addEventListener("click", clearSaved);
@@ -756,6 +779,24 @@
         setStatus(err.message || String(err), "err");
       }
     });
+
+    wireToggleGroup("autoMobility", els.autoMobility);
+    wireToggleGroup("autoClimb", els.autoClimb);
+    wireToggleGroup("autoFuel", els.autoFuel);
+
+    const autoClearBtn = document.getElementById("autoClearBtn");
+    if (autoClearBtn) {
+      autoClearBtn.addEventListener("click", () => {
+        els.autoMobility.value = "";
+        els.autoClimb.value = "";
+        els.autoFuel.value = "";
+        wireToggleGroup("autoMobility", els.autoMobility);
+        wireToggleGroup("autoClimb", els.autoClimb);
+        wireToggleGroup("autoFuel", els.autoFuel);
+        setStatus("Cleared Auto fields.", "");
+      });
+    }
+
 
     // Init
     loadSaved();
