@@ -392,6 +392,12 @@
       els.nextBtn.textContent = (n === stepIds.length - 1) ? "Submit" : "Next";
       setStatus("");
       updateTeleopConditionalUI();
+      if (n === 1) {
+        wireToggleGroup("autoMobility", els.autoMobility);
+        wireToggleGroup("autoClimb", els.autoClimb);
+        wireToggleGroup("autoFuel", els.autoFuel);
+      }
+
     }
 
     function updateTeleopConditionalUI() {
@@ -707,24 +713,34 @@
     }
 
     function setToggleValue(selectEl, wrapEl, value) {
-      selectEl.value = value;
-      [...wrapEl.querySelectorAll(".btn")].forEach((b) => {
+      selectEl.value = value || "";
+
+      const buttons = wrapEl.querySelectorAll('button[data-value]');
+      buttons.forEach((b) => b.classList.remove("on"));
+
+      if (!value) return;
+
+      buttons.forEach((b) => {
         b.classList.toggle("on", b.getAttribute("data-value") === value);
       });
     }
+
 
     function wireToggleGroup(toggleAttr, selectEl) {
       const wrap = document.querySelector(`[data-toggle="${toggleAttr}"]`);
       if (!wrap) return;
 
-      wrap.addEventListener("click", (e) => {
-        const btn = e.target.closest("button[data-value]");
-        if (!btn) return;
-        const value = btn.getAttribute("data-value");
-        setToggleValue(selectEl, wrap, value);
+      const buttons = wrap.querySelectorAll('button[data-value]');
+
+      // bind directly to each button (more reliable than delegation)
+      buttons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const value = btn.getAttribute("data-value");
+          setToggleValue(selectEl, wrap, value);
+        });
       });
 
-      // initialize visual state if select already has a value
+      // initial paint
       if (selectEl.value) setToggleValue(selectEl, wrap, selectEl.value);
     }
 
@@ -790,12 +806,19 @@
         els.autoMobility.value = "";
         els.autoClimb.value = "";
         els.autoFuel.value = "";
-        wireToggleGroup("autoMobility", els.autoMobility);
-        wireToggleGroup("autoClimb", els.autoClimb);
-        wireToggleGroup("autoFuel", els.autoFuel);
+
+        const m = document.querySelector('[data-toggle="autoMobility"]');
+        const c = document.querySelector('[data-toggle="autoClimb"]');
+        const f = document.querySelector('[data-toggle="autoFuel"]');
+
+        if (m) setToggleValue(els.autoMobility, m, "");
+        if (c) setToggleValue(els.autoClimb, c, "");
+        if (f) setToggleValue(els.autoFuel, f, "");
+
         setStatus("Cleared Auto fields.", "");
       });
     }
+
 
 
     // Init
